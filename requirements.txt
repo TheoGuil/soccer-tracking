@@ -1,0 +1,15 @@
+jupyterlab
+notebook
+pandas
+numpy
+scikit-learn
+matplotlib
+seaborn
+tensorflow
+plotly
+streamlit
+openpyxl
+fastapi
+uvicorn
+gunicorn
+sportslabkit

@@ -5,12 +5,11 @@ numpy
 scikit-learn
 matplotlib
 seaborn
-tensorflow
 plotly
 streamlit
 openpyxl
 #fastapi
 uvicorn
 gunicorn
+opencv-python-headless
 sportslabkit
-opencv-python

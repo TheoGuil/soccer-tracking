@@ -9,7 +9,8 @@ tensorflow
 plotly
 streamlit
 openpyxl
-fastapi
+#fastapi
 uvicorn
 gunicorn
 sportslabkit
+opencv-python

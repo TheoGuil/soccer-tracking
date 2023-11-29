@@ -1,5 +1,6 @@
 # import json
 import pandas as pd
+import time
 import os
 import argparse
 from kpi.tracker import Game
@@ -7,7 +8,7 @@ from kpi.tracker import Game
 # from math import *
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--label', type=str, required=True)
+parser.add_argument('--all_player', type=str, required=True)
 parser.add_argument('--output_dir', type=str, required=True)
 args = parser.parse_args()
 
@@ -74,30 +75,26 @@ def detect_team(df):
     return teams0, teams1, ball"""
 
 if __name__ == "__main__":
-    label_folder = args.label
+    csv_path = args.all_player
     annotations_dir = args.output_dir
-    list_label = os.listdir(label_folder)
-    list_label.sort(key=lambda f: int(''.join(filter(str.isdigit, f))))
-    start = 1
-    end = 5
 
-    init = 0
     final_dict_team0 = []
     final_dict_team1 = []
     final_dict_ball = []
     game = Game()
-    init = True
-    for lab in list_label:
-        # get the folder where labels are contained
-        label = pd.read_csv(os.path.join(label_folder, lab), header=None)
-        team0, team1, ball = game.detect_team(label)
-        # create a dictionnary for both of the team and the ball
-        game.create_team(team0, team1, init=init)
-        game.create_ball(ball, init)
-        init = False
-        # save dict in josn file
-    for player in game.team0:
+
+    #start = time.time()
+
+    label = pd.read_csv(os.path.join(csv_path), header=None)
+    team0, team1, ball = game.detect_team(label)
+    # create a dictionnary for both of the team and the ball
+    game.create_team(team0, team1)
+    game.create_ball(ball)
+    # save dict in josn file
+    for player in game.team0["players"]:
         player.add_speed_acc()
-    for player in game.team1:
+    for player in game.team1["players"]:
         player.add_speed_acc()
     game.ball.add_speed_acc()
+    game.ball.get_possession(game.team0['players'], game.team1['players'])
+    print('ok')

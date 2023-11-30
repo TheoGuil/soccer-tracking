@@ -2,7 +2,11 @@
 
 ## Introduction
 
-Description
+Ce projet a pour but de récupérer des statistiques sur un match de football à partir de la retransmission de celui-ci.
+
+A partir de la position des joueurs et du ballon, nous allons calculer des statistiques sur le match.
+        
+A ce stade, nous nous sommes concentrés sur les passes.
 
 ## Dataset preparation
 
@@ -11,10 +15,20 @@ Download the dataset from https://www.kaggle.com/datasets/atomscott/soccertrack
 And put the unzip to the root of the folder
 
 
+## Open dahsboard in dev env
+
+Open Docker container and run the following commands :
+
+``` shell
+cd dashboard/
+```
+puis 
+``` shell
+streamlit run --server.port 80 ./🏠_home.py
+```
 
 
-<hr>
-
+## External sources
 Datas from : https://www.kaggle.com/datasets/atomscott/soccertrack
 
 Useful library : https://sportslabkit.readthedocs.io/

@@ -1,9 +1,18 @@
 from matplotlib.figure import Figure
 from matplotlib import rcParams
+from matplotlib.colors import to_rgba
+
+from pandas import DataFrame
+import numpy as np
 
 from mplsoccer import Pitch
 
-from pandas import DataFrame
+# Setup the colors
+pitch_color = '#F9F9F9'
+line_color = '#666666'
+text_color = '#080808'
+complete_pass_color = '#FFC337'
+incomplete_pass_color = '#E61415'
 
 def get_pass_graph(df: DataFrame, mask_for_complete_pass: any, title: str) -> Figure:
     '''
@@ -12,7 +21,7 @@ def get_pass_graph(df: DataFrame, mask_for_complete_pass: any, title: str) -> Fi
     
     Params:
         df: DataFrame with the pass data.
-            with a leat col : 'x', 'y', 'end_x', 'end_y'
+            with at least col : 'x', 'y', 'end_x', 'end_y'
         mask_for_complete_pass: The mask to apply to get the complete passes.
         title: The title of the graph.
         
@@ -22,13 +31,6 @@ def get_pass_graph(df: DataFrame, mask_for_complete_pass: any, title: str) -> Fi
     # Filter the passes
     df_complete_pass = df[mask_for_complete_pass]
     df_incomplete_pass = df[~mask_for_complete_pass]
-
-    # Setup the colors
-    pitch_color = '#F9F9F9'
-    line_color = '#666666'
-    text_color = '#080808'
-    complete_pass_color = '#FFC337'
-    incomplete_pass_color = '#E61415'
     
     rcParams['text.color'] = text_color
     
@@ -70,6 +72,65 @@ def get_pass_graph(df: DataFrame, mask_for_complete_pass: any, title: str) -> Fi
     
     return fig
     
+def get_pass_network(df_position: DataFrame, df_passes: DataFrame, title: str) -> Figure:
+    '''
+    Create a pass network graph. Each player is represented by a node at
+    the average position of the player. The size of the node is proportional
+    to the number of passes made or received. The line represents the passes
+    between the players.
     
+    Params:
+        df_position: DataFrame with the mean position of the players.
+            with at least col : 'x', 'y', 'count'
+        df_passes: DataFrame with the pass data between two players.
+            with at least col : 'pass_count', 'x', 'y', 'end_x', 'end_y'
+        title: The title of the graph.
+    '''
+    # Calculate the line width
+    MAX_LINE_WIDTH = 18
+    MAX_MARKER_SIZE = 3000
+    df_passes['width'] = (df_passes.pass_count / df_passes.pass_count.max() * MAX_LINE_WIDTH)
+    df_position['marker_size'] = (df_position['count'] / df_position['count'].max() * MAX_MARKER_SIZE)
+        
+    # Add transparency to the line
+    MIN_TRANSPARENCY = 0.3
+    color = np.array(to_rgba('red'))
+    color = np.tile(color, (len(df_passes), 1))
+    c_transparency = df_passes.pass_count / df_passes.pass_count.max()
+    c_transparency = (c_transparency * (1 - MIN_TRANSPARENCY)) + MIN_TRANSPARENCY
+    color[:, 3] = c_transparency
     
+    # Plot
+    pitch = Pitch(pitch_type='statsbomb', 
+              pitch_color=pitch_color, line_color=line_color)
+
+    fig, ax = pitch.draw(figsize=(16, 11), 
+                        constrained_layout=True, tight_layout=False)
+
+    fig.set_facecolor(pitch_color)
+    pass_lines = pitch.lines(
+        df_passes.x, 
+        df_passes.y,
+        df_passes.x_end, 
+        df_passes.y_end, 
+        lw=df_passes.width,
+        color=color, zorder=1, ax=ax)
+
+    pass_nodes = pitch.scatter(
+        df_position.x, 
+        df_position.y,
+        s=df_position.marker_size,
+        color=complete_pass_color, edgecolors=line_color, linewidth=1, alpha=1, ax=ax)
+
+    for index, row in df_position.iterrows():
+        pitch.annotate(
+            row.name,
+            xy=(row.x, row.y), c=pitch_color,
+            va='center', ha='center', 
+            size=16, weight='bold', ax=ax)
+    
+    # Set the title
+    ax_title = ax.set_title(title, fontsize=30)
+    
+    return fig
     

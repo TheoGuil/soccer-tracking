@@ -8,7 +8,8 @@ from kpi.tracker import Game
 # from math import *
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--all_player', type=str, required=True)
+parser.add_argument('--all_player_bbox', type=str, required=True)
+parser.add_argument('--all_player_2D', type=str, required=True)
 parser.add_argument('--output_dir', type=str, required=True)
 args = parser.parse_args()
 
@@ -75,7 +76,8 @@ def detect_team(df):
     return teams0, teams1, ball"""
 
 if __name__ == "__main__":
-    csv_path = args.all_player
+    csv_path_bbox = args.all_player_bbox
+    csv_path_2D = args.all_player_2D
     annotations_dir = args.output_dir
 
     final_dict_team0 = []
@@ -83,13 +85,15 @@ if __name__ == "__main__":
     final_dict_ball = []
     game = Game()
 
-    #start = time.time()
+    # start = time.time()
 
-    label = pd.read_csv(os.path.join(csv_path), header=None)
-    team0, team1, ball = game.detect_team(label)
+    label_bbox = pd.read_csv(os.path.join(csv_path_bbox), header=None)
+    label_2D = pd.read_csv(os.path.join(csv_path_2D), header=None)
+    team0_bbox, team1_bbox, ball_bbox = game.detect_team(label_bbox)
+    team0_2D, team1_2D, ball_2D = game.detect_team(label_2D)
     # create a dictionnary for both of the team and the ball
-    game.create_team(team0, team1)
-    game.create_ball(ball)
+    game.create_team(team0_bbox, team1_bbox, team0_2D, team1_2D)
+    game.create_ball(ball_bbox, ball_2D)
     # save dict in josn file
     for player in game.team0["players"]:
         player.add_speed_acc()
@@ -97,4 +101,6 @@ if __name__ == "__main__":
         player.add_speed_acc()
     game.ball.add_speed_acc()
     game.ball.get_possession(game.team0['players'], game.team1['players'])
+    game.ball.detect_passes()
+    game.ball.draw_passe()
     print('ok')

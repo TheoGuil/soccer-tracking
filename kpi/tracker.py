@@ -6,6 +6,7 @@ import math
 
 class Moving_object:
     positions = []
+    center_2D = []
     speed = []
     acceleration = []
 
@@ -51,13 +52,14 @@ class Moving_object:
     def add_speed_acc(self):
         self.get_centers()
 
-        distance_list = self.calculate_distances(self.center[1:], self.center[:-1])
+        distance_list = self.calculate_distances(self.center_2D[1:], self.center_2D[:-1])
         # distance_list = [self.calculate_distance(self.center[1:], self.center[:-1])
         #                 if self.center[i] is not None and self.center[i - 1] is not None
         #                 else None for i in range(1, len(self.center))]
 
         acc_list = [distance_list[i] - distance_list[i - 1] if distance_list[i] is not None
-                    and distance_list[i - 1] is not None else None for i in range(1, len(distance_list))]
+                                                               and distance_list[i - 1] is not None else None for i in
+                    range(1, len(distance_list))]
 
         self.speed = [0] + distance_list
         self.acceleration = [0, 0] + acc_list
@@ -70,6 +72,13 @@ class Moving_object:
         positions = [pos if None not in pos else None for pos in positions]
         self.positions = self.positions + positions
 
+    def add_center_2D(self, df):
+        df = df.T.reset_index(drop=True).T
+        df = df.astype(float)
+        positions = df.values
+        positions = [pos if None not in pos else None for pos in positions]
+        self.center_2D = self.center_2D + positions
+
 
 class Game:
     def __init__(self):
@@ -77,33 +86,39 @@ class Game:
         self.team1 = {"players": [], "stats": {}}
         self.ball = None
         self.nb_players = 0
+        self.passe = []
 
-    def create_ball(self, df):
+    def create_ball(self, df_box, df_2D):
 
         self.ball = Ball()
-        self.ball.add_position(df)
+        self.ball.add_position(df_box)
+        self.ball.add_center_2D(df_2D)
 
-    def create_team(self, df_team0, df_team1):
+    def create_team(self, df_team0_box, df_team1_box, df_team0_2D, df_team1_2D):
         #  return a dict containing all player in the field and their positions at each frame
         team_dict = []
-        for i in range(0, len(df_team0.columns), 4):
-
+        for i in range(0, len(df_team0_box.columns), 4):
+            j = int(i / 2)
             id_player0 = self.nb_players
             id_player1 = self.nb_players + 1
-            if len(list(set(list(df_team0.iloc[1, i:i + 4])))) > 1 or len(
-                    list(set(list(df_team1.iloc[1, i:i + 4])))) > 1:
+            if len(list(set(list(df_team0_box.iloc[1, i:i + 4])))) > 1 or len(
+                    list(set(list(df_team1_box.iloc[1, i:i + 4])))) > 1:
                 print("error")
                 break
-            pl_team0 = df_team0.iloc[4:, i:i + 4]
-            pl_team1 = df_team0.iloc[4:, i:i + 4]
+            pl_team0_box = df_team0_box.iloc[4:, i:i + 4]
+            pl_team1_box = df_team0_box.iloc[4:, i:i + 4]
+            pl_team0_2D = df_team0_2D.iloc[4:, j:j + 2]
+            pl_team1_2D = df_team1_2D.iloc[4:, j:j + 2]
 
-            self.team0["players"].append(Player(id_player0, pl_team0))
-            self.team1["players"].append(Player(id_player1, pl_team1))
+            self.team0["players"].append(Player(id_player0, 0))
+            self.team1["players"].append(Player(id_player1, 1))
             self.id_to_index_team0 = {obj.id_player: index for index, obj in enumerate(self.team0["players"])}
             self.id_to_index_team1 = {obj.id_player: index for index, obj in enumerate(self.team1["players"])}
 
-            self.team0["players"][self.id_to_index_team0[id_player0]].add_position(pl_team0)
-            self.team1["players"][self.id_to_index_team1[id_player1]].add_position(pl_team1)
+            self.team0["players"][self.id_to_index_team0[id_player0]].add_position(pl_team0_box)
+            self.team1["players"][self.id_to_index_team1[id_player1]].add_position(pl_team1_box)
+            self.team0["players"][self.id_to_index_team0[id_player0]].add_center_2D(pl_team0_2D)
+            self.team1["players"][self.id_to_index_team1[id_player1]].add_center_2D(pl_team1_2D)
             self.nb_players += 2
 
     def detect_team(self, df):
@@ -158,10 +173,49 @@ class Ball(Moving_object):
 
     def get_possession(self, team0, team1):
         all_players = team0 + team1
-        distance_player_ball = [self.calculate_distances(self.center, player.center) for player in all_players]
+        distance_player_ball = [self.calculate_distances(self.center_2D, player.center_2D) for player in all_players]
+        distance_player_ball = np.array(distance_player_ball)
+
+        # Use np.argmin(axis=0) to get the indices of the minimum value along each column
+        self.state = list(np.argmin(distance_player_ball, axis=0))
 
     def detect_passes(self):
         print("ok")
+        index_passe = np.where(np.array(self.acceleration) > 0.10)
+        all_passe = []
+        for ind in np.array(index_passe)[0]:
+            start_passe = ind
+            end_passe = ind
+            while self.speed[end_passe] > 0.2:
+                end_passe = end_passe + 1
+                print(self.speed[end_passe])
+            all_passe.append([start_passe, end_passe])
+        for passe in all_passe:
+            self.state[passe[0]:passe[1]] = [None] * (passe[1] - passe[0])
+        self.passe = all_passe
+
+    def draw_passe(self):
+        import cv2
+        cap = cv2.VideoCapture('full_game_2D.mp4')
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fourcc = int(cap.get(cv2.CAP_PROP_FOURCC))
+        outvid = cv2.VideoWriter('full_game_2D_passe.mp4', cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
+        success, frame = cap.read()
+        count = 0
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            if np.any([start <= count <= end for start, end in self.passe]):
+                frame = cv2.putText(frame, 'passe', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1,
+                                    (255, 0, 0), 1, cv2.LINE_AA)
+            count += 1
+            outvid.write(frame)
+
+
+
 class Actions:
 
     def __init__(self, start, end, id, team_id, player_id, type):

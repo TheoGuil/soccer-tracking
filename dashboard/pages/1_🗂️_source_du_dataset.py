@@ -24,10 +24,9 @@ def load_datas(show_spinner="Chargement des données"):
     original_data = pd.read_csv(orginal_dataset_url, nrows=10, header=None)
     gnss_data = pd.read_csv(gnss_url, nrows=10, header=None)
     key_point_data = json.load(open(key_point_url))
-    pitch_coordinates_data = pd.read_csv(pitch_coordinates_url, nrows=10)
-    return original_data, gnss_data, key_point_data, pitch_coordinates_data
+    return original_data, gnss_data, key_point_data
 
-original_data, gnss_data, key_point_data, pitch_coordinates_data = load_datas()
+original_data, gnss_data, key_point_data = load_datas()
 
 
 st.header("Dataset originel")

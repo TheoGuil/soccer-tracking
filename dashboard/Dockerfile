@@ -1,7 +1,7 @@
 FROM python:3.10
 
-COPY . /app
+COPY . .
 
-RUN pip install -r app/requirements.txt
+RUN pip install -r requirements.txt
 
-CMD streamlit run --server.port $PORT app/🏠_home.py
+CMD streamlit run --server.port $PORT 🏠_home.py

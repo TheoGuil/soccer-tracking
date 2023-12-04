@@ -19,8 +19,8 @@ key_point_url = "src/top_view/drone_keypoints.json"
 
 
 # load the data
-@st.cache_data
-def load_datas(show_spinner="Chargement des données"):
+@st.cache_data(show_spinner="Chargement des données")
+def load_datas():
     original_data = pd.read_csv(orginal_dataset_url, nrows=10, header=None)
     gnss_data = pd.read_csv(gnss_url, nrows=10, header=None)
     key_point_data = json.load(open(key_point_url))

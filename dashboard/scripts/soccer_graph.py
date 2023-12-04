@@ -14,7 +14,7 @@ text_color = '#080808'
 complete_pass_color = '#FFC337'
 incomplete_pass_color = '#E61415'
 
-def get_pass_graph(df: DataFrame, mask_for_complete_pass: any, title: str) -> Figure:
+def get_pass_graph(df: DataFrame, mask_for_complete_pass: any, title: str, pitch_type:str = "custom") -> Figure:
     '''
     Create a pass graph. The background is a soccer field 
     and display a line for each pass.
@@ -24,6 +24,7 @@ def get_pass_graph(df: DataFrame, mask_for_complete_pass: any, title: str) -> Fi
             with at least col : 'x', 'y', 'end_x', 'end_y'
         mask_for_complete_pass: The mask to apply to get the complete passes.
         title: The title of the graph.
+        pitch_type: The type of pitch to display.
         
     Returns: A matplotlib Figure.
     '''
@@ -35,8 +36,9 @@ def get_pass_graph(df: DataFrame, mask_for_complete_pass: any, title: str) -> Fi
     rcParams['text.color'] = text_color
     
     # Setup the pitch
-    pitch = Pitch(pitch_type='statsbomb', 
-                  pitch_color=pitch_color, line_color=line_color)
+    pitch = Pitch(pitch_type=pitch_type, 
+                  pitch_color=pitch_color, line_color=line_color,
+                  pitch_length = 105, pitch_width=68)
     
     fig, ax = pitch.draw(figsize=(16, 11), 
                          constrained_layout=False, tight_layout=True)
@@ -72,7 +74,7 @@ def get_pass_graph(df: DataFrame, mask_for_complete_pass: any, title: str) -> Fi
     
     return fig
     
-def get_pass_network(df_position: DataFrame, df_passes: DataFrame, title: str) -> Figure:
+def get_pass_network(df_position: DataFrame, df_passes: DataFrame, title: str, pitch_type:str = "custom") -> Figure:
     '''
     Create a pass network graph. Each player is represented by a node at
     the average position of the player. The size of the node is proportional
@@ -85,6 +87,7 @@ def get_pass_network(df_position: DataFrame, df_passes: DataFrame, title: str) -
         df_passes: DataFrame with the pass data between two players.
             with at least col : 'pass_count', 'x', 'y', 'end_x', 'end_y'
         title: The title of the graph.
+        pitch_type: The type of pitch to display.
     '''
     # Calculate the line width
     MAX_LINE_WIDTH = 18
@@ -101,8 +104,9 @@ def get_pass_network(df_position: DataFrame, df_passes: DataFrame, title: str) -
     color[:, 3] = c_transparency
     
     # Plot
-    pitch = Pitch(pitch_type='statsbomb', 
-              pitch_color=pitch_color, line_color=line_color)
+    pitch = Pitch(pitch_type=pitch_type, 
+              pitch_color=pitch_color, line_color=line_color,
+              pitch_length = 105, pitch_width=68)
 
     fig, ax = pitch.draw(figsize=(16, 11), 
                         constrained_layout=True, tight_layout=False)
@@ -124,7 +128,7 @@ def get_pass_network(df_position: DataFrame, df_passes: DataFrame, title: str) -
 
     for index, row in df_position.iterrows():
         pitch.annotate(
-            row.name,
+            row.PlayerID,
             xy=(row.x, row.y), c=pitch_color,
             va='center', ha='center', 
             size=16, weight='bold', ax=ax)

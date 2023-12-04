@@ -62,7 +62,7 @@ class Moving_object:
                     range(1, len(distance_list))]
 
         self.speed = [0] + distance_list
-        self.acceleration = [0, 0] + acc_list
+        self.acceleration = [0] + acc_list + [0]
 
     def add_position(self, df):
         #  return a dict containing as key the frame and as value the player's positions
@@ -86,8 +86,15 @@ class Game:
         self.team1 = {"players": [], "stats": {}}
         self.ball = None
         self.nb_players = 0
-        self.passe = []
+        self.actions = []
 
+    def transform_to_dict(self):
+        return {"team0": {'players': [player.__dict__ for player in self.team0['players']]},
+                "team1": {'players': [player.__dict__ for player in self.team1['players']]},
+                "ball": self.ball.__dict__,
+                "actions": [act.__dict__ for act in self.actions]}
+    def transform_actions_to_dict(self):
+        return {"actions": [act.__dict__ for act in self.actions]}
     def create_ball(self, df_box, df_2D):
 
         self.ball = Ball()
@@ -137,7 +144,7 @@ class Player(Moving_object):
     def __init__(self, id_player, team):
         self.id_player = id_player
 
-        self.teams = team
+        self.id_team = team
 
     """def add_position_player(self, df, id, start, end, team):
         #  return a dict containing as key the frame and as value the player's positions
@@ -150,7 +157,7 @@ class Player(Moving_object):
 
 
 class Ball(Moving_object):
-    team_possesion = []
+    team_possession = []
     state = []
 
     """def append_ball_pos(self, df):
@@ -177,7 +184,29 @@ class Ball(Moving_object):
         distance_player_ball = np.array(distance_player_ball)
 
         # Use np.argmin(axis=0) to get the indices of the minimum value along each column
-        self.state = list(np.argmin(distance_player_ball, axis=0))
+        list_argmin = list(np.argmin(distance_player_ball, axis=0))
+        self.state = [all_players[argmin].id_player for argmin in list_argmin]
+        self.team_possession = [all_players[argmin].id_team for argmin in list_argmin]
+
+    def get_passe_from_model(self, df):
+
+        df['change'] = (df['label'] != df['label'].shift(1)).cumsum()
+        val_possession = df[df['label'] == 0]['change'].unique()
+        val_passe = df[df['label'] == 1]['change'].unique()
+        list_intervall_possession = [(df[df['change'] == v].index[0], df[df['change'] == v].index[-1]) for v in
+                                     val_possession]
+        list_intervall_passe = [(df[df['change'] == v].index[0], df[df['change'] == v].index[-2]) for v in val_passe]
+
+        all_passe = [[self.state[intervall[0] - 1], self.state[intervall[1] + 1]] + list(intervall) + [
+            self.team_possession[intervall[0] - 1], self.team_possession[intervall[0] + 1]] for intervall in
+                     list_intervall_passe]
+        all_passe_corrected = [passe for passe in all_passe if passe[0] != passe[1]]
+        for passe in all_passe_corrected:
+            self.state[passe[2]:passe[3]] = [None] * (passe[3] - passe[2])
+            self.team_possession[passe[2]:passe[3]] = [None] * (passe[3] - passe[2])
+        self.passe = all_passe_corrected
+
+        # Création de masques pour les types
 
     def detect_passes(self):
         print("ok")
@@ -214,20 +243,62 @@ class Ball(Moving_object):
             count += 1
             outvid.write(frame)
 
+    def calculate_angles(self):
+        # Calculate vectors between consecutive points
+        positions = np.array(self.center_2D)
+        vectors = np.diff(positions, axis=0)
+
+        # Calculate angles between consecutive vectors
+        angles_radians = np.arctan2(vectors[:, 1], vectors[:, 0])
+        angles_degrees = np.degrees(angles_radians)
+
+        # Calculate differences in angles
+        angle_diffs = np.diff(angles_degrees)
+        self.angles = [0, 0] + list(angle_diffs)
+
+    """def calculate_angles(self):
+        # Convert input lists to NumPy arrays
+        points_t = np.array(self.center_2D)[:-2]
+        points_t1 = np.array(self.center_2D)[1:-1]
+        points_t2 = np.array(self.center_2D)[2:]
+
+        # Calculate vectors between points
+        vectors_ab = points_t1 - points_t
+        vectors_bc = points_t2 - points_t1
+
+        # Calculate dot products and magnitudes
+        dot_products = np.sum(vectors_ab * vectors_bc, axis=1)
+        magnitudes_ab = np.linalg.norm(vectors_ab, axis=1)
+        magnitudes_bc = np.linalg.norm(vectors_bc, axis=1)
+
+        # Calculate angles in radians
+        angles_radians = np.arccos(dot_products / (magnitudes_ab * magnitudes_bc))
+
+        # Convert angles to degrees
+        angles_degrees = np.degrees(angles_radians)
+        self.angle = angles_degrees
+        #return angles_degrees"""
 
 
 class Actions:
 
-    def __init__(self, start, end, id, team_id, player_id, type):
-        self.start = start
-        self.end = end
-        self.id = id
-        self.team = team_id
-        self.player = player_id
+    def __init__(self, start, end, id, type):
+        self.start = int(start)
+        self.end = int(end)
+        self.id = int(id)
         self.type = type
 
 
 class Passe(Actions):
+    def __init__(self, start, end, id, type, passeur_id, receveur_id, team_passeur, team_receveur):
+        # Appel de l'__init__ de la classe parente
+        super().__init__(start, end, id, type)
+
+        # Initialisation propre à la classe Passe
+        self.passeur = passeur_id
+        self.receveur = receveur_id
+        self.team_passeur = team_passeur
+        self.team_receveur = team_receveur
 
     def get_distance_passe(self):
         print('todo')
@@ -242,7 +313,10 @@ class Passe(Actions):
         print('todo')
 
     def succeed(self):
-        print('todo')
+        if self.team_receveur == self.team_passeur:
+            self.succeed = True
+        else:
+            self.succeed = False
 
     def get_(self):
         print('todo')

@@ -1,9 +1,11 @@
 # import json
+import json
+
 import pandas as pd
 import time
 import os
 import argparse
-from kpi.tracker import Game
+from kpi.tracker import Game, Passe
 
 # from math import *
 
@@ -89,6 +91,7 @@ if __name__ == "__main__":
 
     label_bbox = pd.read_csv(os.path.join(csv_path_bbox), header=None)
     label_2D = pd.read_csv(os.path.join(csv_path_2D), header=None)
+    df_passe = pd.read_csv("dataset_passe_process_BINARY.csv", header=0)
     team0_bbox, team1_bbox, ball_bbox = game.detect_team(label_bbox)
     team0_2D, team1_2D, ball_2D = game.detect_team(label_2D)
     # create a dictionnary for both of the team and the ball
@@ -101,6 +104,14 @@ if __name__ == "__main__":
         player.add_speed_acc()
     game.ball.add_speed_acc()
     game.ball.get_possession(game.team0['players'], game.team1['players'])
-    game.ball.detect_passes()
-    game.ball.draw_passe()
+    game.ball.get_passe_from_model(df_passe)
+    game.actions.extend(Passe(passe[2], passe[3], index, 'passe', passe[0], passe[1], passe[4], passe[5]) for index, passe in
+                        enumerate(game.ball.passe))
+    for passe in game.actions:
+        passe.succeed()
+    actions_dict = game.transform_actions_to_dict()
+    with open("passes.json", "w") as outfile:
+        json.dump(actions_dict, outfile)
+    # game.ball.calculate_angles()
+    # game.ball.draw_passe()
     print('ok')

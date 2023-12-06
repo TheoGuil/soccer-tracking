@@ -2,6 +2,6 @@ pandas
 numpy
 matplotlib
 plotly
-streamli
+streamlit
 streamlit-aggrid
 mplsoccer

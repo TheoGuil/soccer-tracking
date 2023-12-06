@@ -103,6 +103,7 @@ if __name__ == "__main__":
     for player in game.team1["players"]:
         player.add_speed_acc()
     game.ball.add_speed_acc()
+    game.ball.calculate_angles()
     game.ball.get_possession(game.team0['players'], game.team1['players'])
     game.ball.get_passe_from_model(df_passe)
     game.actions.extend(Passe(passe[2], passe[3], index, 'passe', passe[0], passe[1], passe[4], passe[5]) for index, passe in
@@ -110,6 +111,7 @@ if __name__ == "__main__":
     for passe in game.actions:
         passe.succeed()
     actions_dict = game.transform_actions_to_dict()
+    [ action.get_player_eliminated(game.team0['player'], game.team1['player']) for action in game.actions]
     with open("passes.json", "w") as outfile:
         json.dump(actions_dict, outfile)
     # game.ball.calculate_angles()

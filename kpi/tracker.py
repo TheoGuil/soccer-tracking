@@ -93,8 +93,10 @@ class Game:
                 "team1": {'players': [player.__dict__ for player in self.team1['players']]},
                 "ball": self.ball.__dict__,
                 "actions": [act.__dict__ for act in self.actions]}
+
     def transform_actions_to_dict(self):
         return {"actions": [act.__dict__ for act in self.actions]}
+
     def create_ball(self, df_box, df_2D):
 
         self.ball = Ball()
@@ -251,10 +253,13 @@ class Ball(Moving_object):
         # Calculate angles between consecutive vectors
         angles_radians = np.arctan2(vectors[:, 1], vectors[:, 0])
         angles_degrees = np.degrees(angles_radians)
-
+        angles_diff = np.diff(angles_degrees)
+        angles_degree_180 = (angles_diff + 180) % 360 - 180
         # Calculate differences in angles
-        angle_diffs = np.diff(angles_degrees)
-        self.angles = [0, 0] + list(angle_diffs)
+        sine_values = np.sin(np.radians(angles_degree_180))
+
+        self.angles = [0] + list(angles_degree_180) + [0]
+        self.angles_sinus = [0] + list(sine_values) + [0]
 
     """def calculate_angles(self):
         # Convert input lists to NumPy arrays
@@ -309,7 +314,8 @@ class Passe(Actions):
     def get_speed(self):
         print('todo')
 
-    def get_player_eliminated(self):
+    def get_player_eliminated(self, team0, team1, ball):
+
         print('todo')
 
     def succeed(self):

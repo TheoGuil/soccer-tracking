@@ -91,7 +91,7 @@ if __name__ == "__main__":
 
     label_bbox = pd.read_csv(os.path.join(csv_path_bbox), header=None)
     label_2D = pd.read_csv(os.path.join(csv_path_2D), header=None)
-    df_passe = pd.read_csv("dataset_passe_process_BINARY.csv", header=0)
+    df_passe = pd.read_csv("passe_predicted.csv", header=0)
     team0_bbox, team1_bbox, ball_bbox = game.detect_team(label_bbox)
     team0_2D, team1_2D, ball_2D = game.detect_team(label_2D)
     # create a dictionnary for both of the team and the ball
@@ -111,7 +111,7 @@ if __name__ == "__main__":
     for passe in game.actions:
         passe.succeed()
     actions_dict = game.transform_actions_to_dict()
-    [ action.get_player_eliminated(game.team0['player'], game.team1['player']) for action in game.actions]
+    #[ action.get_player_eliminated(game.team0['player'], game.team1['player']) for action in game.actions]
     with open("passes.json", "w") as outfile:
         json.dump(actions_dict, outfile)
     # game.ball.calculate_angles()

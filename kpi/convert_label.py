@@ -109,11 +109,12 @@ if __name__ == "__main__":
     game.actions.extend(Passe(passe[2], passe[3], index, 'passe', passe[0], passe[1], passe[4], passe[5]) for index, passe in
                         enumerate(game.ball.passe))
     for passe in game.actions:
-        passe.succeed()
+        passe.get_succeed()
     actions_dict = game.transform_actions_to_dict()
     #[ action.get_player_eliminated(game.team0['player'], game.team1['player']) for action in game.actions]
     with open("passes.json", "w") as outfile:
         json.dump(actions_dict, outfile)
     # game.ball.calculate_angles()
     # game.ball.draw_passe()
+    game.get_stats_per_team()
     print('ok')

@@ -12,5 +12,3 @@ st.title("📸 Détections des passes")
 
 video_url = "src/top_view/full_game_2D_passe.mp4"
 st.video(video_url, start_time=0, format='video/mp4')
-
-col1, col2 = st.columns(2)

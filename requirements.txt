@@ -13,3 +13,4 @@ uvicorn
 gunicorn
 opencv-python-headless
 sportslabkit
+streamlit-aggrid

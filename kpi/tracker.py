@@ -2,6 +2,7 @@ import pandas as pd
 import json
 import numpy as np
 import math
+from itertools import groupby
 
 
 class Game:
@@ -33,6 +34,15 @@ class Game:
         :return: A dict of all actions
         """
         return {"actions": [act.__dict__ for act in self.actions]}
+
+    def write_player_stats_json(self):
+        stats_player_dict = {}
+        for player in self.team0['players'] + self.team1['players']:
+            stats_player_dict[player.id_player] = player.stats
+        return stats_player_dict
+
+    def write_team_stats_json(self):
+        return {'team0': self.team0['stats'], "team1": self.team1['stats']}
 
     def create_ball(self, df_box, df_2D):
         """
@@ -91,7 +101,6 @@ class Game:
         teams1 = df.iloc[:, end_team1:end_team2]
         ball = df.iloc[4:, end_team2:]
         return teams0, teams1, ball
-
 
     def get_stats_per_team(self):
         """
@@ -236,24 +245,32 @@ class Player(Moving_object):
     def __init__(self, id_player, team):
         self.id_player = id_player
         self.id_team = team
+        self.stats = {}
 
-    def get_stats_player(self):
-
-
+    def get_stats_player(self, ball, actions):
+        self.get_max_speed_acc()
+        self.get_distance_runned()
+        self.get_nb_passes(actions)
+        self.get_nb_ball_touched(ball)
 
     def get_max_speed_acc(self):
-
+        self.stats["max_speed"] = max(self.speed)
+        self.stats["max_acceleration"] = max(self.acceleration)
 
     def get_distance_runned(self):
+        self.stats["distance_run"] = np.sum(self.speed)
 
+    def get_nb_passes(self, actions):
+        nb_passe = len([passe for passe in actions if passe.passeur == self.id_player])
+        self.stats["nb_passe"] = nb_passe
+        self.stats["pourcentage_passe_reussis"] = len(
+            [passe for passe in actions if passe.passeur == self.id_player and passe.succeed]) / nb_passe
 
-    def get_nb_passes(self):
-
-
-    def get_nb_ball_touched(self):
-
-
-
+    def get_nb_ball_touched(self, ball):
+        possession_state = ball.state
+        df_poss = pd.DataFrame(data=possession_state)
+        df_poss[1] = (df_poss[0] != df_poss[0].shift(1)).cumsum()
+        self.stats["nb_ballon_touche"] = len(set(df_poss[df_poss[0] == self.id_player][1].values))
 
     """def add_position_player(self, df, id, start, end, team):
         #  return a dict containing as key the frame and as value the player's positions

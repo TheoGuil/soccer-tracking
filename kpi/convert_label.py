@@ -116,5 +116,16 @@ if __name__ == "__main__":
         json.dump(actions_dict, outfile)
     # game.ball.calculate_angles()
     # game.ball.draw_passe()
+    for player in game.team0['players']:
+        player.get_stats_player(game.ball, game.actions)
+    for player in game.team1['players']:
+        player.get_stats_player(game.ball, game.actions)
     game.get_stats_per_team()
+    player_stats = game.write_player_stats_json()
+    team_stats = game.write_team_stats_json()
     print('ok')
+    with open("stats_player.json", "w") as outfile:
+        json.dump(player_stats, outfile)
+    with open("stats_team.json", "w") as outfile:
+        json.dump(team_stats, outfile)
+

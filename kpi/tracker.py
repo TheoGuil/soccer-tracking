@@ -192,16 +192,21 @@ class Ball(Moving_object):
 
     def get_passe_from_model(self, df):
 
-        df['change'] = (df['label'] != df['label'].shift(1)).cumsum()
-        val_possession = df[df['label'] == 0]['change'].unique()
-        val_passe = df[df['label'] == 1]['change'].unique()
+        df['change'] = (df['predicted'] != df['predicted'].shift(1)).cumsum()
+        val_possession = df[df['predicted'] == 0]['change'].unique()
+
         list_intervall_possession = [(df[df['change'] == v].index[0], df[df['change'] == v].index[-1]) for v in
                                      val_possession]
-        list_intervall_passe = [(df[df['change'] == v].index[0], df[df['change'] == v].index[-2]) for v in val_passe]
+        for inter_poss in list_intervall_possession:
+            if inter_poss[0] == inter_poss[1]:
+                df.loc[inter_poss, 'predicted'] = 1
+        df['change'] = (df['predicted'] != df['predicted'].shift(1)).cumsum()
+        val_passe = df[df['predicted'] == 1]['change'].unique()
+        list_intervall_passe = [(df[df['change'] == v].index[0], df[df['change'] == v].index[-1]) for v in val_passe]
 
         all_passe = [[self.state[intervall[0] - 1], self.state[intervall[1] + 1]] + list(intervall) + [
             self.team_possession[intervall[0] - 1], self.team_possession[intervall[0] + 1]] for intervall in
-                     list_intervall_passe]
+                     list_intervall_passe[:-1]]
         all_passe_corrected = [passe for passe in all_passe if passe[0] != passe[1]]
         for passe in all_passe_corrected:
             self.state[passe[2]:passe[3]] = [None] * (passe[3] - passe[2])

@@ -1,6 +1,7 @@
 from matplotlib.figure import Figure
 from matplotlib import rcParams
 from matplotlib.colors import to_rgba
+import plotly.graph_objects as go
 
 from pandas import DataFrame
 import numpy as np
@@ -137,4 +138,47 @@ def get_pass_network(df_position: DataFrame, df_passes: DataFrame, title: str, p
     ax_title = ax.set_title(title, fontsize=30)
     
     return fig
+
+def get_performance_chart(team_stats: DataFrame, stats: list[str], stats_per: list[str], stats_label: list[str], 
+                          team_label: list[str], team_color: list[str])-> Figure:
+    '''
+    Create a horizontal bar chart to compare the performance of two teams.
     
+    Params:
+        team_stats: DataFrame with the stats of the teams.
+        stats: List of the stats.
+        stats_per: List of the stats in percentage.
+        stats_label: List of the stats label.
+        team_label: List of the team label.
+        team_color: List of the team color.
+    
+    Returns:
+        A matplotlib Figure.
+    '''
+    fig = go.Figure()
+    for index, team in enumerate(team_stats.index):
+        fig.add_trace(go.Bar(
+            x=team_stats.loc[team, stats_per].values, 
+            y=stats_label, 
+            name=team_label[index], 
+            orientation='h',
+            marker=dict(color=team_color[index])))
+    
+    annotations = []
+    for index, stat in enumerate(stats):
+        annotations.append(
+            dict(xref='x', yref='y', x=0.1, y=index, 
+                text=str(round(team_stats.loc[team_stats.index[0], [stat]].values[0], 2)), 
+                showarrow=False, 
+                font=dict(color="white", size=14))
+    )
+        annotations.append(
+            dict(xref='x', yref='y', x=0.9, y=index, 
+                text=str(round(team_stats.loc[team_stats.index[1], [stat]].values[0], 2)), 
+                showarrow=False, 
+                font=dict(color="white", size=14))
+    )
+    
+    fig.update_layout(barmode='relative', title_text='Performance', annotations=annotations, xaxis=dict(visible=False))
+
+    return fig

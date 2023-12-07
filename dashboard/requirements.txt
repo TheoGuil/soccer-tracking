@@ -3,4 +3,5 @@ numpy
 matplotlib
 plotly
 streamlit
+streamlit-aggrid
 mplsoccer

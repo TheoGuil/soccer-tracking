@@ -254,11 +254,12 @@ class Player(Moving_object):
         self.get_nb_ball_touched(ball)
 
     def get_max_speed_acc(self):
-        self.stats["max_speed"] = max(self.speed)
-        self.stats["max_acceleration"] = max(self.acceleration)
+        # [ind for ind, sp in enumerate(self.speed) if sp > 3]
+        self.stats["max_speed"] = float(max(self.speed))
+        self.stats["max_acceleration"] = float(max(self.acceleration))
 
     def get_distance_runned(self):
-        self.stats["distance_run"] = np.sum(self.speed)
+        self.stats["distance_run"] = float(np.sum(self.speed))
 
     def get_nb_passes(self, actions):
         nb_passe = len([passe for passe in actions if passe.passeur == self.id_player])
@@ -286,7 +287,7 @@ class Ball(Moving_object):
     team_possession = []
     state = []
 
-    def get_possession(self, team0, team1):
+    def get_possession(self, team0, team1, index0, index1):
         """
         Get the closest player from the ball at each frame and his team.
         :param team0: List of player instances team0.
@@ -311,28 +312,52 @@ class Ball(Moving_object):
         :return:
         """
 
+        df = self.correct_possession_error(df)
+        df = self.correct_passe_error(df)
+        df = self.correct_deviation(df)
+
+        df['change'] = (df['predicted'] != df['predicted'].shift(1)).cumsum()
+        val_passe = df[df['predicted'] == 1]['change'].unique()
+        list_intervall_passe = [(df[df['change'] == v].index[0], df[df['change'] == v].index[-1]) for v in val_passe]
+        all_passe = [[self.state[intervall[0] - 1], self.state[intervall[1] + 1]] + list(intervall) + [
+            self.team_possession[intervall[0] - 1], self.team_possession[intervall[1] + 1]] for intervall in
+                     list_intervall_passe[:-1]]
+        for passe in all_passe:
+            self.state[passe[2]:passe[3]] = [None] * (passe[3] - passe[2])
+            self.team_possession[passe[2]:passe[3]] = [None] * (passe[3] - passe[2])
+        self.passe = all_passe
+
+        # Création de masques pour les types
+
+    def correct_deviation(self, df):
+        df_dev = df[(df['predicted'] == 1) & (df['angle'].abs() > 50) & (df['speed'] > 0.10)]
+        index_dev = df_dev.index
+        for dev in index_dev:
+            df.loc[dev, 'predicted'] = 0
+        return df
+
+    def correct_passe_error(self, df):
+        df['change'] = (df['predicted'] != df['predicted'].shift(1)).cumsum()
+
+        val_passe = df[df['predicted'] == 1]['change'].unique()
+        list_intervall_passe = [(df[df['change'] == v].index[0], df[df['change'] == v].index[-1]) for v in val_passe]
+        for intervall in list_intervall_passe[:-1]:
+            if self.state[intervall[0] - 1] == self.state[intervall[1] + 1]:
+                if intervall[0] == intervall[1]:
+                    df.loc[intervall[0], 'predicted'] = 0
+                else:
+                    df.loc[intervall[0]:intervall[1], 'predicted'] = 0
+        return df
+
+    def correct_possession_error(self, df):
         df['change'] = (df['predicted'] != df['predicted'].shift(1)).cumsum()
         val_possession = df[df['predicted'] == 0]['change'].unique()
-
         list_intervall_possession = [(df[df['change'] == v].index[0], df[df['change'] == v].index[-1]) for v in
                                      val_possession]
         for inter_poss in list_intervall_possession:
             if inter_poss[0] == inter_poss[1]:
                 df.loc[inter_poss, 'predicted'] = 1
-        df['change'] = (df['predicted'] != df['predicted'].shift(1)).cumsum()
-        val_passe = df[df['predicted'] == 1]['change'].unique()
-        list_intervall_passe = [(df[df['change'] == v].index[0], df[df['change'] == v].index[-1]) for v in val_passe]
-
-        all_passe = [[self.state[intervall[0] - 1], self.state[intervall[1] + 1]] + list(intervall) + [
-            self.team_possession[intervall[0] - 1], self.team_possession[intervall[0] + 1]] for intervall in
-                     list_intervall_passe[:-1]]
-        all_passe_corrected = [passe for passe in all_passe if passe[0] != passe[1]]
-        for passe in all_passe_corrected:
-            self.state[passe[2]:passe[3]] = [None] * (passe[3] - passe[2])
-            self.team_possession[passe[2]:passe[3]] = [None] * (passe[3] - passe[2])
-        self.passe = all_passe_corrected
-
-        # Création de masques pour les types
+        return df
 
     def detect_passes(self):
         """
@@ -406,6 +431,28 @@ class Actions:
         self.id = int(id)
         self.type = type
 
+    def calculate_distances(self, points_a, points_b):
+        """
+        Calculate distance between points from list points_a and list of points_b.
+        :param points_a: List of points A
+        :param points_b: List of points B
+        :return:
+        """
+        points_a = np.array(points_a, dtype=float)
+        points_b = np.array(points_b, dtype=float)
+
+        # Replace None values with np.nan
+        points_a[np.equal(points_a, None)] = np.nan
+        points_b[np.equal(points_b, None)] = np.nan
+
+        # Extract x and y coordinates
+        x1, y1 = points_a[:, 0], points_a[:, 1]
+        x2, y2 = points_b[:, 0], points_b[:, 1]
+
+        # Use vectorized distance calculation
+        distances = np.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+        return distances
+
 
 class Passe(Actions):
     def __init__(self, start, end, id, type, passeur_id, receveur_id, team_passeur, team_receveur):
@@ -418,18 +465,62 @@ class Passe(Actions):
         self.team_passeur = team_passeur
         self.team_receveur = team_receveur
 
-    def get_distance_passe(self):
-        print('todo')
+    def get_stats_passe(self, ball, team0, team1):
+        self.get_distance_passe(ball)
+        self.get_player_eliminated(team0, team1, ball)
+        self.get_in_30_m(ball)
+        self.get_in_surface(ball)
+        self.get_succeed()
 
-    def get_receveur_passeur(self):
-        print('todo')
+    def get_distance_passe(self, ball):
+        distance_passe = self.calculate_distances([ball.center_2D[self.end]], [ball.center_2D[self.start]])[0]
+        if distance_passe < 25:
+            self.longueur = 'courte'
+        elif distance_passe < 50:
+            self.longueur = 'moyenne'
+        else:
+            self.longueur = 'longue'
+        self.speed = distance_passe / (self.end - self.start)
 
-    def get_speed(self):
-        print('todo')
+    def get_in_surface(self, ball):
+        # start surface 14, 54, 16.5
+        self.in_surface_reparation = False
+        position_ball = ball.center_2D[self.end]
+        if self.team_passeur == 0:
+            if position_ball[0] < 16.5 and position_ball[1] > 14 and position_ball[1] < 54:
+                self.in_surface_reparation = True
+        elif self.team_passeur == 1:
+            if position_ball[0] > 88.5 and position_ball[1] > 14 and position_ball[1] < 54:
+                self.in_surface_reparation = True
+
+    def get_in_30_m(self, ball):
+        position_ball = ball.center_2D[self.end]
+        self.passe_in_last_30m = False
+        if self.team_passeur == 0:
+            if position_ball[0] < 26:
+                self.passe_in_last_30m = True
+        elif self.team_passeur == 1:
+            if position_ball[0] > 78:
+                self.passe_in_last_30m = True
+
+
 
     def get_player_eliminated(self, team0, team1, ball):
-
-        print('todo')
+        position_start = ball.center_2D[self.start]
+        position_end = ball.center_2D[self.end]
+        x_inf = min(position_start[0], position_end[0])
+        x_sup = max(position_start[0], position_end[0])
+        team_adverse = abs(self.team_passeur - 1)
+        if team_adverse == 0:
+            self.nb_player_elminated = len(
+                [player for player in team0 if
+                 player.center_2D[int(self.start + (self.end - self.start) / 2)][0] > x_inf and
+                 player.center_2D[int(self.start + (self.end - self.start) / 2)][0] < x_sup])
+        elif team_adverse == 1:
+            self.nb_player_elminated = len(
+                [player for player in team1 if
+                 player.center_2D[int(self.start + (self.end - self.start) / 2)][0] > x_inf and
+                 player.center_2D[int(self.start + (self.end - self.start) / 2)][0] < x_sup])
 
     def get_succeed(self):
         if self.team_receveur == self.team_passeur:
@@ -437,5 +528,4 @@ class Passe(Actions):
         else:
             self.succeed = False
 
-    def get_(self):
-        print('todo')
+

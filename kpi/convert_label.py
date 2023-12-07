@@ -104,14 +104,15 @@ if __name__ == "__main__":
         player.add_speed_acc()
     game.ball.add_speed_acc()
     game.ball.calculate_angles()
-    game.ball.get_possession(game.team0['players'], game.team1['players'])
+    game.ball.get_possession(game.team0['players'], game.team1['players'], game.id_to_index_team0, game.id_to_index_team1)
     game.ball.get_passe_from_model(df_passe)
-    game.actions.extend(Passe(passe[2], passe[3], index, 'passe', passe[0], passe[1], passe[4], passe[5]) for index, passe in
-                        enumerate(game.ball.passe))
+    game.actions.extend(
+        Passe(passe[2], passe[3], index, 'passe', passe[0], passe[1], passe[4], passe[5]) for index, passe in
+        enumerate(game.ball.passe))
     for passe in game.actions:
-        passe.get_succeed()
+        passe.get_stats_passe(game.ball, game.team0['players'], game.team1['players'])
     actions_dict = game.transform_actions_to_dict()
-    #[ action.get_player_eliminated(game.team0['player'], game.team1['player']) for action in game.actions]
+    # [ action.get_player_eliminated(game.team0['player'], game.team1['player']) for action in game.actions]
     with open("passes.json", "w") as outfile:
         json.dump(actions_dict, outfile)
     # game.ball.calculate_angles()
@@ -128,4 +129,3 @@ if __name__ == "__main__":
         json.dump(player_stats, outfile)
     with open("stats_team.json", "w") as outfile:
         json.dump(team_stats, outfile)
-

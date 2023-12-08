@@ -15,6 +15,7 @@ PASSES_URL = 'src/stats/all_passe_with_coordinates.csv'
 POSITIONS_URL = 'src/stats/mean_position.csv'
 PASSES_RELATION_URL = 'src/stats/pass_relation.csv'
 TEAM_STATS_URL = 'src/stats/stats_team.json'
+PLAYERS_STATS_URL = 'src/stats/stats_player.json'
 
 @st.cache_data(show_spinner="Chargement des données")
 def load_pass():
@@ -40,6 +41,13 @@ def load_team_stats():
     for key in stats_key:
         data[key+"_per"] = data[key]/data[key].sum()
     return data, stats_key, [key+"_per" for key in stats_key], [key.replace('_', ' ').title() for key in stats_key]
+  
+  
+@st.cache_data(show_spinner="Chargement des données")
+def load_player_stats():
+  data = pd.read_json(PLAYERS_STATS_URL)
+  data = data.transpose()
+  return data
 
 # Title
 st.title("📈 Statistiques")
@@ -76,3 +84,9 @@ with col2 :
                                   pass_relation.loc[pass_relation['team'] == team_id],
                                   f"Réseau de passes de l'{team.lower()}",)
   st.pyplot(network_fig)
+
+
+st.subheader("Statistiques des joueurs")
+player_df = load_player_stats()
+player_stat = display_scatter_plot(player_df, "Nombre de passes vs % de passes réussis", "nb_passe", "pourcentage_passe_reussis")
+st.plotly_chart(player_stat, config={"displayModeBar": False})

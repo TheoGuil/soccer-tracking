@@ -2,6 +2,7 @@ from matplotlib.figure import Figure
 from matplotlib import rcParams
 from matplotlib.colors import to_rgba
 import plotly.graph_objects as go
+import plotly.express as px
 
 from pandas import DataFrame
 import numpy as np
@@ -182,3 +183,120 @@ def get_performance_chart(team_stats: DataFrame, stats: list[str], stats_per: li
     fig.update_layout(barmode='relative', title_text='Performance', annotations=annotations, xaxis=dict(visible=False))
 
     return fig
+
+def display_scatter_plot(data: DataFrame, title: str, x_stat: str,  y_stat: str)-> Figure:
+    '''
+        Display a scatter plot
+    
+        Params:
+            data : DataFrame
+            title: string
+            x_stat : stat name for x axe
+            y_stat : stat name for y axe
+                    
+        Returns:
+            A plotly Figure
+    '''
+    x_median = data[x_stat].median()
+    x_std = data[x_stat].std()
+    y_median = data[y_stat].median()
+    y_std = data[y_stat].std()
+
+    data["Cluster"] = "colored" 
+    
+    # Display graph
+    bgcol = '#fafafa'
+    palette = {"colored":"rgba(113, 61, 181, 0.8)", "uncolored": "rgba(151, 151, 151, 0.5)"}
+    
+    fig = px.scatter(
+        data, x=x_stat, y=y_stat, color="Cluster",
+        hover_name=data.index, hover_data={x_stat:":.2f", y_stat:":.2f"}, 
+        text=data.index,
+        title=f"<b>{title}</b>",
+        color_discrete_map=palette,
+        width=1000,
+        height=500
+    )
+    
+    fig.update_traces(
+        textposition='top center',
+        textfont_size=7,
+    )
+    
+    fig.update_layout(
+        paper_bgcolor=bgcol,
+        plot_bgcolor=bgcol,
+        showlegend=False,
+        title=dict(
+            font=dict(
+                size=20
+            ),
+            xref='paper',
+            x=0
+        ),
+        yaxis = dict(
+            title = dict(
+                text = f"<b>{y_stat.replace('_', ' ').title()}"
+            ),
+            tickfont = dict(
+                size=10
+            ),
+        ),
+        xaxis = dict(
+            title = dict(
+                text = f"<b>{x_stat.replace('_', ' ').title()}"
+            ),
+            tickfont = dict(
+                size=10
+            ),
+        ),
+        margin=dict(l=80, r=20, t=60, b=20),
+        annotations = [
+            dict(
+                xref='x', yref='y',
+                x=data[x_stat].max() - x_std, y=y_median,
+                bgcolor=bgcol,
+                showarrow=False,
+                text=f'median {y_stat}',
+                font=dict(size=10),
+            ),
+            dict(
+                xref='x', yref='y',
+                x=x_median, y=data[y_stat].max() - y_std,
+                bgcolor=bgcol,
+                showarrow=False,
+                text=f'median {x_stat}',
+                font=dict(size=10),
+            )
+        ],
+        shapes= [
+            # Line Horizontal
+            dict(
+                type='line',
+                x0=data[x_stat].min(),
+                y0=y_median,
+                x1=data[x_stat].max(),
+                y1=y_median,
+                line=dict(
+                    color='#a7a1a1',
+                    width=1,
+                    dash="dash"
+                ),
+            ),
+            dict(
+                type='line',
+                x0=x_median,
+                y0=data[y_stat].min(),
+                x1=x_median,
+                y1=data[y_stat].max(),
+                line=dict(
+                    color='#a7a1a1',
+                    width=1,
+                    dash="dash"
+                ),
+            )
+        ],
+    )
+    
+    return fig
+    

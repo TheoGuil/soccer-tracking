@@ -17,6 +17,7 @@ class Game:
         self.ball = None
         self.nb_players = 0
         self.actions = []
+        self.nb_action = 0
 
     def transform_to_dict(self):
         """
@@ -108,21 +109,39 @@ class Game:
         """
         count_passe_team0, count_passe_team1, count_passe_succes_team0, count_passe_succes_team1, pourcentage_0, pourcentage_1 = self.count_passe()
         pourcentage_possession_team0, pourcentage_possession_team1 = self.count_possession()
+        count_tir_team0, count_tir_team1 = self.count_tir()
+        count_centre_team0, count_centre_team1 = self.count_centre()
 
         self.team0['stats'] = {'total_passe': count_passe_team0, 'pourcentage_passe_reussis': pourcentage_0,
-                               'possession': pourcentage_possession_team0}
+                               'possession': pourcentage_possession_team0, "total_tir": int(count_tir_team0),
+                               "total_centre": int(count_centre_team0)}
         self.team1['stats'] = {'total_passe': count_passe_team1, 'pourcentage_passe_reussis': pourcentage_1,
-                               'possession': pourcentage_possession_team1}
+                               'possession': pourcentage_possession_team1, "total_tir": int(count_tir_team1),
+                               "total_centre": int(count_centre_team0)}
+
+    def count_centre(self):
+        actions_centre = [act for act in self.actions if act.type == 'centre']
+        count_centre_team0 = len([centre for centre in actions_centre if centre.team_passeur == 0])
+        count_centre_team1 = len([centre for centre in actions_centre if centre.team_passeur == 1])
+        return count_centre_team0, count_centre_team1
+
+    def count_tir(self):
+        actions_tir = [act for act in self.actions if act.type == 'tir']
+        count_tir_team0 = len([tir for tir in actions_tir if tir.team == 0])
+        count_tir_team1 = len([tir for tir in actions_tir if tir.team == 1])
+        return count_tir_team0, count_tir_team1
 
     def count_passe(self):
         """
         Count passes for each team.
         :return:
         """
-        count_passe_team0 = len([passe for passe in self.actions if passe.team_passeur == 0])
-        count_passe_team1 = len([passe for passe in self.actions if passe.team_passeur == 1])
-        count_passe_succes_team0 = len([passe for passe in self.actions if passe.team_passeur == 0 and passe.succeed])
-        count_passe_succes_team1 = len([passe for passe in self.actions if passe.team_passeur == 1 and passe.succeed])
+
+        actions_passe = [act for act in self.actions if act.type == 'passe']
+        count_passe_team0 = len([passe for passe in actions_passe if passe.team_passeur == 0])
+        count_passe_team1 = len([passe for passe in actions_passe if passe.team_passeur == 1])
+        count_passe_succes_team0 = len([passe for passe in actions_passe if passe.team_passeur == 0 and passe.succeed])
+        count_passe_succes_team1 = len([passe for passe in actions_passe if passe.team_passeur == 1 and passe.succeed])
         pourcentage_0 = count_passe_succes_team0 / count_passe_team0 * 100
         pourcentage_1 = count_passe_succes_team1 / count_passe_team1 * 100
         return count_passe_team0, count_passe_team1, count_passe_succes_team0, count_passe_succes_team1, pourcentage_0, pourcentage_1
@@ -132,10 +151,12 @@ class Game:
         Count possession for each team.
         :return:
         """
+
+        actions_passe = [act for act in self.actions if act.type == 'passe']
         count_possession_team0 = len([team for team in self.ball.team_possession if team == 0])
         count_possession_team1 = len([team for team in self.ball.team_possession if team == 1])
-        len_passe_team0 = np.sum([passe.end - passe.start for passe in self.actions if passe.team_passeur == 0])
-        len_passe_team1 = np.sum([passe.end - passe.start for passe in self.actions if passe.team_passeur == 1])
+        len_passe_team0 = np.sum([passe.end - passe.start for passe in actions_passe if passe.team_passeur == 0])
+        len_passe_team1 = np.sum([passe.end - passe.start for passe in actions_passe if passe.team_passeur == 1])
 
         total_possession_team0 = (count_possession_team0 + len_passe_team0) / len(self.ball.team_possession) * 100
         total_possession_team1 = (count_possession_team1 + len_passe_team1) / len(self.ball.team_possession) * 100
@@ -251,6 +272,8 @@ class Player(Moving_object):
         self.get_max_speed_acc()
         self.get_distance_runned()
         self.get_nb_passes(actions)
+        self.get_nb_shot(actions)
+        self.get_nb_centre(actions)
         self.get_nb_ball_touched(ball)
 
     def get_max_speed_acc(self):
@@ -262,10 +285,21 @@ class Player(Moving_object):
         self.stats["distance_run"] = float(np.sum(self.speed))
 
     def get_nb_passes(self, actions):
-        nb_passe = len([passe for passe in actions if passe.passeur == self.id_player])
+        actions_passe = [act for act in actions if act.type == 'passe']
+        nb_passe = len([passe for passe in actions_passe if passe.passeur == self.id_player])
         self.stats["nb_passe"] = nb_passe
         self.stats["pourcentage_passe_reussis"] = len(
-            [passe for passe in actions if passe.passeur == self.id_player and passe.succeed]) / nb_passe
+            [passe for passe in actions_passe if passe.passeur == self.id_player and passe.succeed]) / nb_passe
+
+    def get_nb_shot(self, actions):
+        actions_tir = [act for act in actions if act.type == 'tir']
+        nb_tir = len([tir for tir in actions_tir if tir.tireur == self.id_player])
+        self.stats["nb_tir"] = nb_tir
+
+    def get_nb_centre(self, actions):
+        actions_centre = [act for act in actions if act.type == 'centre']
+        nb_centre = len([centre for centre in actions_centre if centre.passeur == self.id_player])
+        self.stats["nb_centre"] = nb_centre
 
     def get_nb_ball_touched(self, ball):
         possession_state = ball.state
@@ -303,7 +337,7 @@ class Ball(Moving_object):
         self.state = [all_players[argmin].id_player for argmin in list_argmin]
         self.team_possession = [all_players[argmin].id_team for argmin in list_argmin]
 
-    def get_passe_from_model(self, df):
+    def get_passe_tir_centre_from_model(self, df):
         """
         Get results of passes prediction and create a list passe with
         the id of the passeur, id of the receveur, start , end, team passeur, team receveur.
@@ -315,17 +349,35 @@ class Ball(Moving_object):
         df = self.correct_possession_error(df)
         df = self.correct_passe_error(df)
         df = self.correct_deviation(df)
+        df = self.detect_shot_cross(df)
 
         df['change'] = (df['predicted'] != df['predicted'].shift(1)).cumsum()
         val_passe = df[df['predicted'] == 1]['change'].unique()
         list_intervall_passe = [(df[df['change'] == v].index[0], df[df['change'] == v].index[-1]) for v in val_passe]
+
+        val_centre = df[df['predicted'] == 3]['change'].unique()
+        list_intervall_centre = [(df[df['change'] == v].index[0], df[df['change'] == v].index[-1]) for v in val_centre]
+
+        val_tir = df[df['predicted'] == 2]['change'].unique()
+        list_intervall_tir = [(df[df['change'] == v].index[0], df[df['change'] == v].index[-1]) for v in val_tir]
+
         all_passe = [[self.state[intervall[0] - 1], self.state[intervall[1] + 1]] + list(intervall) + [
             self.team_possession[intervall[0] - 1], self.team_possession[intervall[1] + 1]] for intervall in
                      list_intervall_passe[:-1]]
-        for passe in all_passe:
-            self.state[passe[2]:passe[3]] = [None] * (passe[3] - passe[2])
-            self.team_possession[passe[2]:passe[3]] = [None] * (passe[3] - passe[2])
+        all_centre = [[self.state[intervall[0] - 1], self.state[intervall[1] + 1]] + list(intervall) + [
+            self.team_possession[intervall[0] - 1], self.team_possession[intervall[1] + 1]] for intervall in
+                      list_intervall_centre]
+
+        all_tir = [[self.state[intervall[0] - 1], self.state[intervall[0] - 1]] + list(intervall) + [
+            self.team_possession[intervall[0] - 1]] for intervall in
+                   list_intervall_tir]
+        for action in all_passe + all_tir + all_centre:
+            self.state[action[2]:action[3]] = [None] * (action[3] - action[2])
+            self.team_possession[action[2]:action[3]] = [None] * (action[3] - action[2])
+
         self.passe = all_passe
+        self.centre = all_centre
+        self.tir = all_tir
 
         # Création de masques pour les types
 
@@ -357,6 +409,32 @@ class Ball(Moving_object):
         for inter_poss in list_intervall_possession:
             if inter_poss[0] == inter_poss[1]:
                 df.loc[inter_poss, 'predicted'] = 1
+        return df
+
+    def detect_shot_cross(self, df):
+        df['change'] = (df['predicted'] != df['predicted'].shift(1)).cumsum()
+
+        val_passe = df[df['predicted'] == 1]['change'].unique()
+        list_intervall_passe = [(df[df['change'] == v].index[0], df[df['change'] == v].index[-1]) for v in val_passe]
+        for inter in list_intervall_passe:
+            pos_start = self.center_2D[inter[0]]
+            pos_end = self.center_2D[inter[1]]
+            # start surface 14, 54, 16.5
+            if self.team_possession[inter[0] - 1] == 0:
+                if (pos_start[0] < 26 and (pos_start[1] > 44 or pos_start[1] < 24)
+                        and pos_end[0] < 16.5 and pos_end[1] > 14 and pos_end[1] < 54):
+                    df.loc[inter[0]:inter[1], 'predicted'] = 3
+                if pos_end[0] < 5 and pos_start[0] < 26 and pos_end[1] < 44 and pos_end[1] > 24 and not (
+                        pos_start[1] > 54 or pos_start[1] < 14):
+                    df.loc[inter[0]:inter[1], 'predicted'] = 2
+
+            elif self.team_possession[inter[0] - 1] == 1:
+                if (pos_start[0] > 78 and (pos_start[1] > 44 or pos_start[1] < 24)
+                        and pos_end[0] > 88.5 and pos_end[1] > 14 and pos_end[1] < 54):
+                    df.loc[inter[0]:inter[1], 'predicted'] = 3
+                if pos_end[0] > 100 and pos_start[0] > 78 and pos_end[1] < 44 and pos_end[1] > 24 and not (
+                        pos_start[1] > 54 or pos_start[1] < 14):
+                    df.loc[inter[0]:inter[1], 'predicted'] = 2
         return df
 
     def detect_passes(self):
@@ -503,8 +581,6 @@ class Passe(Actions):
             if position_ball[0] > 78:
                 self.passe_in_last_30m = True
 
-
-
     def get_player_eliminated(self, team0, team1, ball):
         position_start = ball.center_2D[self.start]
         position_end = ball.center_2D[self.end]
@@ -529,3 +605,23 @@ class Passe(Actions):
             self.succeed = False
 
 
+class Centre(Actions):
+    def __init__(self, start, end, id, type, passeur_id, receveur_id, team_passeur, team_receveur):
+        # Appel de l'__init__ de la classe parente
+        super().__init__(start, end, id, type)
+
+        # Initialisation propre à la classe Passe
+        self.passeur = passeur_id
+        self.receveur = receveur_id
+        self.team_passeur = team_passeur
+        self.team_receveur = team_receveur
+
+
+class Tir(Actions):
+
+    def __init__(self, start, end, id, type, tireur_id, tireur_team):
+        # Appel de l'__init__ de la classe parente
+        super().__init__(start, end, id, type)
+
+        self.tireur = tireur_id
+        self.team = tireur_team

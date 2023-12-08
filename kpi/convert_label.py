@@ -5,7 +5,7 @@ import pandas as pd
 import time
 import os
 import argparse
-from kpi.tracker import Game, Passe
+from kpi.tracker import Game, Passe, Centre, Tir
 
 # from math import *
 
@@ -14,68 +14,6 @@ parser.add_argument('--all_player_bbox', type=str, required=True)
 parser.add_argument('--all_player_2D', type=str, required=True)
 parser.add_argument('--output_dir', type=str, required=True)
 args = parser.parse_args()
-
-"""def create_ball(df):
-    # return a dict containing as key the frame and as value the ball's positions
-    df = df.T.reset_index(drop=True).T
-    positions = []
-    for index, row in df.iterrows():
-        frame_id = "frame_" + str(index) + ".jpg"
-        if not pd.isnull(row[0]):
-            # positions.append({frame_id: {"x": float(row[0]) + float(row[2]) / 2, "y": float(row[1]) + float(row[3]) / 2,
-            #                             "w": float(row[2]),
-            #                             "h": float(row[3])}})
-            positions.append([int(float(row[0])), int(float(row[1])), int(float(row[2])), int(float(row[3]))])
-
-        else:
-            positions.append(None)
-
-    return positions
-
-
-def create_player(df, id, start, end):
-    #  return a dict containing as key the frame and as value the player's positions
-    df = df.T.reset_index(drop=True).T
-    positions = []
-    for index, row in df.iterrows():
-        frame_id = "frame_" + str(index) + ".jpg"
-        if not pd.isnull(row[0]):
-            # positions.append({frame_id: {"x": float(row[0]) + float(row[2]) / 2, "y": float(row[1]) + float(row[3]) / 2,
-            #                             "w": float(row[2]),
-            #                             "h": float(row[3])}})
-            positions.append([int(float(row[0])), int(float(row[1])), int(float(row[2])), int(float(row[3]))])
-
-        else:
-            positions.append(None)
-            print("players {} out at frame {} columns {}:{}".format(id, frame_id, start, end))
-    player = {"id": int(id), "positions": positions}
-    return player
-
-
-def create_team(df_team):
-    #  return a dict containing all player in the field and their positions at each frame
-    team_dict = []
-    for i in range(0, len(df_team.columns), 4):
-        id_player = list(set(list(df_team.iloc[1, i:i + 4])))
-        if len(id_player) > 1:
-            print("error")
-            break
-        else:
-            id_player = int(id_player[0])
-        pl = df_team.iloc[4:, i:i + 4]
-        team_dict.append(create_player(pl, id_player, i, i + 5))
-    return team_dict
-
-
-def detect_team(df):
-    # separate player of same team
-    team_index = df.iloc[0, :]
-    end_team1 = min(team_index[team_index == '1'].index)
-    end_team2 = min(team_index[team_index == 'BALL'].index)
-    teams0 = df.iloc[:, 1:end_team1]
-    teams1 = df.iloc[:, end_team1:end_team2]
-    ball = df.iloc[4:, end_team2:]
-    return teams0, teams1, ball"""
 
 if __name__ == "__main__":
     csv_path_bbox = args.all_player_bbox
@@ -104,16 +42,29 @@ if __name__ == "__main__":
         player.add_speed_acc()
     game.ball.add_speed_acc()
     game.ball.calculate_angles()
-    game.ball.get_possession(game.team0['players'], game.team1['players'], game.id_to_index_team0, game.id_to_index_team1)
-    game.ball.get_passe_from_model(df_passe)
+    game.ball.get_possession(game.team0['players'], game.team1['players'], game.id_to_index_team0,
+                             game.id_to_index_team1)
+    game.ball.get_passe_tir_centre_from_model(df_passe)
+
     game.actions.extend(
-        Passe(passe[2], passe[3], index, 'passe', passe[0], passe[1], passe[4], passe[5]) for index, passe in
+        Passe(passe[2], passe[3], index+game.nb_action, 'passe', passe[0], passe[1], passe[4], passe[5]) for index, passe in
         enumerate(game.ball.passe))
-    for passe in game.actions:
-        passe.get_stats_passe(game.ball, game.team0['players'], game.team1['players'])
+    game.nb_action = len(game.actions)
+    game.actions.extend(
+        Centre(passe[2], passe[3], index+game.nb_action, 'centre', passe[0], passe[1], passe[4], passe[5]) for index, passe in
+        enumerate(game.ball.centre))
+    game.nb_action = len(game.actions)
+    game.actions.extend(
+        Tir(passe[2], passe[3], index+game.nb_action, 'tir', passe[0], passe[4]) for index, passe in
+        enumerate(game.ball.tir))
+    game.nb_action = len(game.actions)
+
+    for action in game.actions:
+        if action.type == 'passe':
+            action.get_stats_passe(game.ball, game.team0['players'], game.team1['players'])
     actions_dict = game.transform_actions_to_dict()
     # [ action.get_player_eliminated(game.team0['player'], game.team1['player']) for action in game.actions]
-    with open("passes.json", "w") as outfile:
+    with open("dashboard/src/stats/passes.json", "w") as outfile:
         json.dump(actions_dict, outfile)
     # game.ball.calculate_angles()
     # game.ball.draw_passe()
@@ -125,7 +76,7 @@ if __name__ == "__main__":
     player_stats = game.write_player_stats_json()
     team_stats = game.write_team_stats_json()
     print('ok')
-    with open("stats_player.json", "w") as outfile:
+    with open("dashboard/src/stats/stats_player.json", "w") as outfile:
         json.dump(player_stats, outfile)
-    with open("stats_team.json", "w") as outfile:
+    with open("dashboard/src/stats/stats_team.json", "w") as outfile:
         json.dump(team_stats, outfile)
